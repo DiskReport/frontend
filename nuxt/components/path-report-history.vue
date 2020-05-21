@@ -46,7 +46,10 @@ export default {
         },
         display: function () {
             this.refresh()
-        }
+        },
+        //history_min: function () {
+        //    this.refresh()
+        //}
     },
     methods: {
         refresh: function () {
@@ -79,66 +82,152 @@ export default {
             var display=this.display;
             var datazoom_start=this.history_min;
 
-            // limit series count and add Other serie
-            var percent_limit=1.5; // warning, if 500 small files, only Other is visible. ok if file list to see detail/go in subfolder
+            // BEGIN V2
             var limited_series=[]; // with "Other"
-            var limited_diskreport_data={}; // intermediate series data
-            for (var i=0; i<this.diskreport_data.ts.length; i++) {
-                var timestamp=parseInt(this.diskreport_data.ts[i]);
-                var tmp_list=[]
-                for (var name in this.diskreport_data.data[timestamp]) {
-                    value=parseInt(this.diskreport_data.data[timestamp][name][sortby]);
-                    tmp_list.push({name:name,value:value})
-                }
-                // calculate Total size/count
-                var total=0;
-                for (var j=0; j<tmp_list.length; j++) {
-                    total+=tmp_list[j].value;
-                }
-                // size/count limit
-                var limit=total*1.5/100
-                // calculate Other size/count
-                var other_label='All others';
-                var other_total=0;
-                for (var j=0; j<tmp_list.length; j++) {
-                    var name =tmp_list[j].name
-                    var value=tmp_list[j].value
-                    if (value > limit) {
-                        // keep it
-                        if (limited_diskreport_data[name]) {
-                            limited_diskreport_data[name][timestamp]=value
+
+            // work on a copy of diskreport_data:
+            var diskreport_data = JSON.parse(JSON.stringify(this.diskreport_data));
+
+            // TODO: forgot before datazoom_start
+            // will nee to get timestamp or convert percent to timestamp, and enable history_min trigger
+            //console.log("forgot before datazoom")
+            //for (var i=0; i<diskreport_data.ts.length; i++) {
+            //    var timestamp=diskreport_data.ts[i];
+            //    console.log("timestamp: "+timestamp)
+            //    console.log("datazoom_start: "+datazoom_start)
+            //    console.log("*1000 ?")
+            //    if (timestamp < datazoom_start) {
+            //        console.log("deleting timestamp :"+timestamp)
+            //        delete(diskreport_data.data[timestamp])
+            //    }
+            //}
+
+            // set value to 0 if no value at timestamp
+            for (var i in diskreport_data.name_list) {
+                var name=diskreport_data.name_list[i];
+                for (var i=0; i<diskreport_data.ts.length; i++) {
+                    var timestamp=parseInt(diskreport_data.ts[i]);
+                    //console.log("name: "+name+" / timestamp: "+timestamp)
+                    if (! diskreport_data.data[timestamp][name]) {
+                        //console.log("name "+name+"does not exist at timestamp "+timestamp+" : setting default to zero")
+                        if (sortby=='s') { 
+                            diskreport_data.data[timestamp][name]={ s: 0 };
+                        } else if (sortby=='fc') {
+                            diskreport_data.data[timestamp][name]={ fc: 0 };
                         } else {
-                            limited_diskreport_data[name]={}
-                            limited_diskreport_data[name][timestamp]=value
+                            alert("unknown sortby "+sortby)
                         }
-                    } else {
-                        // adding to Other
-                        other_total+=tmp_list[j].value;
                     }
                 }
-                // add Other
-                if (other_total > 0) {
-                    var name=other_label
-                    var value=other_total
-                    if (limited_diskreport_data[name]) {
-                        limited_diskreport_data[name][timestamp]=value
-                    } else {
-                        limited_diskreport_data[name]={}
-                        limited_diskreport_data[name][timestamp]=value
-                    }
-                } 
             }
-            for (var name in limited_diskreport_data) {
+
+            // forgot if no variation
+            if (show=='variation') {
+                for (var i in diskreport_data.name_list) {
+                    var name=diskreport_data.name_list[i];
+                    var has_change=false
+                    //var previous_value=undefined
+                    var min=undefined
+                    var max=undefined
+                    for (var i=0; i<diskreport_data.ts.length; i++) {
+                        var timestamp=parseInt(diskreport_data.ts[i]);
+                        //console.log("name: "+name+" / timestamp: "+timestamp)
+                        if (diskreport_data.data[timestamp][name]) {
+                            var value=diskreport_data.data[timestamp][name][sortby];
+                            if (min==undefined) {
+                                min=value;
+                            }
+                            if (max==undefined) {
+                                max=value;
+                            }
+                            if (value < min) {
+                                min=value
+                            }
+                            if (value > min) {
+                                max=value
+                            }
+                        } else {
+                            alert("1: name "+name+" does not exist at timestamp "+timestamp+". this should not appear because value should be set to 0 at missing timestamps")
+                        }
+                    }
+                    // remove it has no changed
+                    if (min==max) {
+                        //console.log("name "+name+" did not change, removing it…")
+                        for (var i=0; i<diskreport_data.ts.length; i++) {
+                            var timestamp=parseInt(diskreport_data.ts[i]);
+                            delete(diskreport_data.data[timestamp][name])
+                        }
+                        //skip next step
+                        continue
+                    }
+                    // keep only diff from min
+                    for (var i=0; i<diskreport_data.ts.length; i++) {
+                        var timestamp=parseInt(diskreport_data.ts[i]);
+                        // minus min
+                        diskreport_data.data[timestamp][name][sortby]-=min;
+                    }
+                }
+            }
+
+            // limit series count/add other serie
+            // for each ts
+            var other_used=false;
+            var other_name='All others';
+            for (var t=0; t<diskreport_data.ts.length; t++) {
+                var timestamp=parseInt(diskreport_data.ts[t]);
+                // first loop: calc total
+                var total=0;
+                for (var n in diskreport_data.name_list) {
+                    var name=diskreport_data.name_list[n];
+                    if (diskreport_data.data[timestamp][name]) {
+                        total+=parseInt(diskreport_data.data[timestamp][name][sortby])
+                    }
+                }
+                //console.log("total at timestamp: "+timestamp+" : "+total)
+                // define limit
+                var limit=total*1.5/100;
+                var other_total=0;
+                // second loop: clean too small and add them to All others
+                for (var n in diskreport_data.name_list) {
+                    var name=diskreport_data.name_list[n];
+                    if (diskreport_data.data[timestamp][name]) {
+                        var value=parseInt(diskreport_data.data[timestamp][name][sortby])
+                        if (value < limit) {
+                            // add it to All others
+                            other_total+=value;
+                            // and remove it
+                            delete(diskreport_data.data[timestamp][name])
+                        }
+                    }
+                }
+                // add All others
+                if (other_total > 0) {
+                    other_used=true;
+                    //console.log("other_total at timestamp: "+timestamp+" : "+other_total)
+                    if (sortby=='s') {
+                        diskreport_data.data[timestamp][other_name]={t: '-', s: other_total };
+                    } else if (sortby=='fc') {
+                        diskreport_data.data[timestamp][other_name]={t: '-', fc: other_total };
+                    } else {
+                        alert("unknown sortby "+sortby)
+                    }
+                }
+            }
+            // add 'All others' if it was used
+            if (other_used) {
+                diskreport_data.name_list.push(other_name)
+            }
+
+            // convert to series
+            for (var i in diskreport_data.name_list) {
+                var name=diskreport_data.name_list[i];
                 var serie={
                     tooltip: {
                         // do not set trigger to item, or set_ts will not have the point timestamp
                         trigger: 'axis',
                         formatter: function (params) {
-                            console.log('TOTO-here')
-                            console.log(params);
-                            console.log(`${params.seriesName}<br>${params.marker} ${params.value.month}: ${params.value[params.seriesName]}`)
                             if (params.value[1] == 0) {
-                                console.log('size 0 at this ts for '+params.seriesName)
+                                //console.log('size 0 at this ts for '+params.seriesName)
                                 return null
                             }
                             return params.seriesName+'<br>'+human_size(params.value[1])
@@ -163,61 +252,26 @@ export default {
                 }
 
                 // here we keep all timestamp to set value to 0 otherwise
-                for (var i=0; i<this.diskreport_data.ts.length; i++) {
-                    var timestamp=parseInt(this.diskreport_data.ts[i]);
+                for (var i=0; i<diskreport_data.ts.length; i++) {
+                    var timestamp=parseInt(diskreport_data.ts[i]);
                     var value;
-                    if (limited_diskreport_data[name][timestamp]) {
-                        value=parseInt(limited_diskreport_data[name][timestamp]);
+                    if (diskreport_data.data[timestamp][name]) {
+                        value=parseInt(diskreport_data.data[timestamp][name][sortby]);
                     } else {
                         value=0;
                     }
                     serie.data.push({value:[timestamp*1000,value]});
                 }
-
-                // graph serie depending on show filter
-                if (show=='variation') {
-                    // search if serie is constant or not
-                    var first_value=null;
-                    var value_has_changed=0;
-                    for (var i = 0; i < serie.data.length; i++) {
-                        let value=serie.data[i].value[1]
-                        if (first_value==null) {
-                            first_value=value;
-                        } else if (first_value!=value) {
-                            value_has_changed=1;
-                            break;
-                        }
-                    }
-                    if (value_has_changed==1) {
-                        //console.log(name+": has changed");
-                        //searching min value of serie
-                        var min=undefined;
-                        for (var i=0; i < serie.data.length; i++) {
-                            var value=serie.data[i].value[1];
-                            if (min==undefined) {
-                                min=value;
-                            }
-                            if (value < min) {
-                                min=value;
-                            }
-                        }
-                        //setting values relative to min value
-                        for (var i=0; i < serie.data.length; i++) {
-                            serie.data[i].value[1]-=min;
-                        }
-                        limited_series.push(serie);
-                    }
-                } else {
-                    limited_series.push(serie);
-                }
+                limited_series.push(serie);
             }
 
+            // sort series
             limited_series.sort(function(a, b) {
                 // always put Other last
-                if (a.name == 'Other') {
+                if (a.name == 'All others') {
                     return 1
                 }
-                if (b.name == 'Other') {
+                if (b.name == 'All others') {
                     return -1
                 }
                 return (a.name < b.name) ? -1 : 1;
@@ -249,8 +303,6 @@ export default {
                 tooltip: {
                     trigger: 'item',
 	            formatter: function (params) {
-                         //console.log('history tooltip:')
-                         //console.log(params)
                          let tooltip = '';
                          let total=0
                          params.forEach((s) => {
