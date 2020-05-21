@@ -150,7 +150,7 @@ export default {
                             alert("1: name "+name+" does not exist at timestamp "+timestamp+". this should not appear because value should be set to 0 at missing timestamps")
                         }
                     }
-                    // remove it has no changed
+                    // remove it if has no changed
                     if (min==max) {
                         //console.log("name "+name+" did not change, removing it…")
                         for (var i=0; i<diskreport_data.ts.length; i++) {
@@ -217,6 +217,21 @@ export default {
             if (other_used) {
                 diskreport_data.name_list.push(other_name)
             }
+            // remove all that are filtred by All others
+            var name_seen=[];
+            for (var t=0; t<diskreport_data.ts.length; t++) {
+                var timestamp=parseInt(diskreport_data.ts[t]);
+                for (var n in diskreport_data.name_list) {
+                    var name=diskreport_data.name_list[n];
+                    if (diskreport_data.data[timestamp][name]) {
+                        if (name_seen.indexOf(name) == -1) {
+                            name_seen.push(name);
+                        }
+                    }
+                }
+            }
+            // replace name_list by name_seen
+            diskreport_data.name_list=name_seen;
 
             // convert to series
             for (var i in diskreport_data.name_list) {
