@@ -84,6 +84,11 @@ export default {
             });
         },
     },
+    components: {
+        'path-links': PathLinks,
+        'path-report-pie': PathReportPie,
+        'path-report-history': PathReportHistory,
+    }
 }
 </script>
 

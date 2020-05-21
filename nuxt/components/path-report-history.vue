@@ -1,10 +1,7 @@
 <script>
-//import VueECharts from 'vue-echarts'
 import {getRGB,human_size} from '../plugins/diskreport'
 
-
-function formatDate(d)
-{
+function formatDate(d) {
     var month = d.getMonth();
     var day = d.getDate();
     var hour = d.getHours();
