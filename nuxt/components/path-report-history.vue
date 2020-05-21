@@ -190,6 +190,21 @@ export default {
                     }
                     if (value_has_changed==1) {
                         //console.log(name+": has changed");
+                        //searching min value of serie
+                        var min=undefined;
+                        for (var i=0; i < serie.data.length; i++) {
+                            var value=serie.data[i].value[1];
+                            if (min==undefined) {
+                                min=value;
+                            }
+                            if (value < min) {
+                                min=value;
+                            }
+                        }
+                        //setting values relative to min value
+                        for (var i=0; i < serie.data.length; i++) {
+                            serie.data[i].value[1]-=min;
+                        }
                         limited_series.push(serie);
                     }
                 } else {
@@ -218,7 +233,7 @@ export default {
                 console.log("unsupported sortby")
             }
             if (show == 'variation') {
-                title+=' (only if variation)';
+                title+=' (only variation)';
             }
 
             // return echart with data 
