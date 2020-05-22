@@ -133,7 +133,7 @@ export default {
                         var timestamp=parseInt(diskreport_data.ts[i]);
                         //console.log("name: "+name+" / timestamp: "+timestamp)
                         if (diskreport_data.data[timestamp][name]) {
-                            var value=diskreport_data.data[timestamp][name][sortby];
+                            var value=parseInt(diskreport_data.data[timestamp][name][sortby]);
                             if (min==undefined) {
                                 min=value;
                             }
@@ -143,7 +143,7 @@ export default {
                             if (value < min) {
                                 min=value
                             }
-                            if (value > min) {
+                            if (value > max) {
                                 max=value
                             }
                         } else {
