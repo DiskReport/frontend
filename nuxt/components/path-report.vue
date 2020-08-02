@@ -76,6 +76,10 @@ export default {
 
                 // store diskreport_data
                 //console.log('Storing diskreport_data:'+JSON.stringify(diskreport_data))
+                if (self.diskreport_data) {
+                  // delete previous data
+                  delete(self.diskreport_data);
+                }
                 self.diskreport_data = diskreport_data;
                 self.trigger++; //increment i used as trigger
                 //self.$store.commit('setDiskreportData',diskreport_data)
